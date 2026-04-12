@@ -119,6 +119,15 @@ export default function Home() {
               Pare de tentar e errar. A IA entende os critérios de aprovação e gera
               o roteiro vencedor na primeira tentativa — pronto para narrar.
             </p>
+            
+            <div style={{ marginTop: "2rem", padding: "1.5rem", background: "rgba(139, 92, 246, 0.08)", border: "1px solid rgba(139, 92, 246, 0.2)", borderRadius: "var(--radius-lg)", textAlign: "left", maxWidth: "800px", margin: "2rem auto 0" }}>
+              <h3 style={{ fontSize: "1.1rem", marginBottom: "1rem", color: "var(--text-primary)" }}>Como usar o AdScript AI? É muito simples:</h3>
+              <ol style={{ paddingLeft: "1.2rem", fontSize: "0.95rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+                <li><strong>Preencha os passos abaixo:</strong> Diga qual é a ideia do seu vídeo, quem você quer atingir e escolha o formato.</li>
+                <li><strong>Clique em Gerar Roteiro:</strong> A nossa IA vai processar sua ideia e aplicar as regras ocultas do algoritmo.</li>
+                <li><strong>Copie e Grave:</strong> Você receberá não só o roteiro para ler, mas também dicas do "Hook" (os primeiros 3 segundos) e gestos que prendem a atenção do público. Mãos à obra!</li>
+              </ol>
+            </div>
           </section>
         )}
 

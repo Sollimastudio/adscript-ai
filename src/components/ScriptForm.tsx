@@ -67,9 +67,12 @@ export default function ScriptForm({
         {/* Platform Selection */}
         <div className="form-group">
           <label className="form-label">
-            <span className="label-icon">📱</span>
-            Plataforma
+            <span className="label-icon">1</span>
+            Onde você vai postar?
           </label>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px", marginTop: "-6px" }}>
+            O algoritmo formata o vídeo de acordo com as regras exatas de cada rede.
+          </p>
           <div className="platform-grid">
             {PLATAFORMAS.map((p) => (
               <button
@@ -88,9 +91,12 @@ export default function ScriptForm({
         {/* Emotion Selection */}
         <div className="form-group">
           <label className="form-label">
-            <span className="label-icon">🎭</span>
-            Emoção que você quer causar
+            <span className="label-icon">2</span>
+            Qual emoção você quer causar no público?
           </label>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px", marginTop: "-6px" }}>
+            As pessoas compram ou interagem pela emoção. Escolha o gatilho principal.
+          </p>
           <div className="emotion-grid">
             {EMOCOES.map((e) => (
               <button
@@ -109,9 +115,12 @@ export default function ScriptForm({
         {/* Subject */}
         <div className="form-group">
           <label className="form-label">
-            <span className="label-icon">💡</span>
-            Assunto ou Insight
+            <span className="label-icon">3</span>
+            Qual é o assunto, a ideia ou o produto?
           </label>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px", marginTop: "-6px" }}>
+            Escreva do seu jeito a mensagem central do vídeo. A inteligência artificial vai organizar isso no formato vencedor.
+          </p>
           <textarea
             className="form-textarea"
             placeholder="Ex: As pessoas compram por emoção e justificam com lógica. Por isso, quem vende lógica perde para quem vende desejo..."
@@ -124,9 +133,12 @@ export default function ScriptForm({
         {/* Niche */}
         <div className="form-group">
           <label className="form-label">
-            <span className="label-icon">🎯</span>
-            Nicho / Público-alvo
+            <span className="label-icon">4</span>
+            Quem você quer atingir? (Público-alvo)
           </label>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px", marginTop: "-6px" }}>
+            Definir o público ajuda a IA a escolher as palavras que mais conectam com eles.
+          </p>
           <input
             type="text"
             className="form-input"
@@ -139,9 +151,12 @@ export default function ScriptForm({
         {/* Duration */}
         <div className="form-group">
           <label className="form-label">
-            <span className="label-icon">⏱️</span>
-            Duração do Vídeo
+            <span className="label-icon">5</span>
+            Qual será a duração do vídeo?
           </label>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px", marginTop: "-6px" }}>
+            Isso define o tamanho do texto que você terá que narrar.
+          </p>
           <div className="duration-grid">
             {DURACOES.map((d) => (
               <button
