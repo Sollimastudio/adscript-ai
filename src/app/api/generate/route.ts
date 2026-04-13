@@ -395,9 +395,19 @@ Gere o roteiro completo otimizado para APROVAÇÃO e ALTA PERFORMANCE no algorit
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("OpenRouter error:", errText);
+      console.error("OpenRouter error:", response.status, errText);
+
+      const friendlyMessage =
+        response.status === 401
+          ? 'Chave de API inválida ou sem permissão. Verifique a variável OPENROUTER_API_KEY nas configurações do servidor.'
+          : response.status === 429
+          ? 'Limite de requisições atingido. Aguarde alguns segundos e tente novamente.'
+          : response.status === 402
+          ? 'Créditos insuficientes na conta OpenRouter.'
+          : `Erro na API: ${response.status}`;
+
       return NextResponse.json(
-        { success: false, error: `Erro na API: ${response.status}` },
+        { success: false, error: friendlyMessage },
         { status: response.status }
       );
     }
