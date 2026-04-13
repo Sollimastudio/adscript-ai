@@ -7,6 +7,33 @@ import ScriptResult from "@/components/ScriptResult";
 
 type AppState = "form" | "loading" | "result" | "error";
 
+interface ScriptData {
+  score: {
+    total: number;
+    relevancia: number;
+    hookQuality: number;
+    compliance: number;
+    engajamento: number;
+  };
+  hook: {
+    texto: string;
+    acao: string;
+  };
+  roteiro: string;
+  direcaoCena: string;
+  dicasRetencao: Array<{
+    momento: string;
+    dica: string;
+    risco: string;
+  }>;
+  compliance: Array<{
+    item: string;
+    status: string;
+  }>;
+  ctaFinal: string;
+  frameworkUsado: string;
+}
+
 const LOADING_STEPS = [
   "Analisando critérios de aprovação...",
   "Selecionando framework de copywriting...",
@@ -26,7 +53,7 @@ export default function Home() {
 
   // App state
   const [appState, setAppState] = useState<AppState>("form");
-  const [scriptData, setScriptData] = useState<any>(null);
+  const [scriptData, setScriptData] = useState<ScriptData | null>(null);
   const [error, setError] = useState("");
   const [activeLoadingStep, setActiveLoadingStep] = useState(0);
 

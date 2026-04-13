@@ -44,6 +44,14 @@ interface ScriptData {
   };
 }
 
+type PreApproverIssue = {
+  regra: string;
+  campo: 'hook' | 'roteiro' | 'ctaFinal';
+  risco: RiskLevel;
+  trecho: string;
+  recomendacao: string;
+};
+
 interface Rule {
   id: string;
   label: string;
@@ -180,7 +188,7 @@ function normalizeScriptData(input: unknown): ScriptData | null {
 }
 
 function runPreApprover(data: ScriptData): ScriptData {
-  const issues: ScriptData['preAprovador']['problemas'] = [];
+  const issues: PreApproverIssue[] = [];
   const fields: Array<{ key: 'hook' | 'roteiro' | 'ctaFinal'; text: string }> = [
     { key: 'hook', text: data.hook.texto },
     { key: 'roteiro', text: data.roteiro },
