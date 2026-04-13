@@ -30,6 +30,19 @@ interface ScriptData {
   }>;
   ctaFinal: string;
   frameworkUsado: string;
+  preAprovador?: {
+    status: "aprovado" | "revisado";
+    riscoGeral: "alto" | "medio" | "baixo";
+    pontuacao: number;
+    resumo: string;
+    problemas: Array<{
+      regra: string;
+      campo: "hook" | "roteiro" | "ctaFinal";
+      risco: "alto" | "medio" | "baixo";
+      trecho: string;
+      recomendacao: string;
+    }>;
+  };
 }
 
 interface ScriptResultProps {
@@ -40,6 +53,12 @@ interface ScriptResultProps {
 
 export default function ScriptResult({ data, duracao, onNewScript }: ScriptResultProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+
+  const getRiskColor = (risk: "alto" | "medio" | "baixo") => {
+    if (risk === "alto") return "var(--score-low)";
+    if (risk === "medio") return "var(--score-medium)";
+    return "var(--score-high)";
+  };
 
   const copyToClipboard = (text: string, section: string) => {
     navigator.clipboard.writeText(text);
@@ -79,6 +98,82 @@ export default function ScriptResult({ data, duracao, onNewScript }: ScriptResul
 
       {/* Result Blocks */}
       <div className="result-blocks">
+          {/* Internal Pre-Approver Block */}
+          {data.preAprovador && (
+            <div className="glass-card result-block">
+              <div className="block-header">
+                <div className="block-icon compliance">🛡️</div>
+                <div>
+                  <div className="block-title">Pré-aprovador Interno</div>
+                  <div className="block-subtitle">Análise determinística para reduzir risco de reprovação</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    color: data.preAprovador.status === "aprovado" ? "var(--score-high)" : "var(--score-medium)",
+                    border: `1px solid ${data.preAprovador.status === "aprovado" ? "var(--score-high)" : "var(--score-medium)"}`,
+                    background: "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  {data.preAprovador.status}
+                </span>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  Score interno: <strong style={{ color: "var(--text-primary)" }}>{data.preAprovador.pontuacao}/100</strong>
+                </span>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  Risco geral: <strong style={{ color: getRiskColor(data.preAprovador.riscoGeral) }}>{data.preAprovador.riscoGeral}</strong>
+                </span>
+              </div>
+              <p className="block-content" style={{ marginBottom: data.preAprovador.problemas.length ? "14px" : 0 }}>
+                {data.preAprovador.resumo}
+              </p>
+              {data.preAprovador.problemas.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {data.preAprovador.problemas.map((problema, i) => (
+                    <div
+                      key={`${problema.regra}-${i}`}
+                      style={{
+                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderLeft: `3px solid ${getRiskColor(problema.risco)}`,
+                        borderRadius: "8px",
+                        padding: "10px 12px",
+                        fontSize: "0.82rem",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginBottom: "4px" }}>
+                        <strong style={{ color: "var(--text-primary)" }}>{problema.regra}</strong>
+                        <span style={{ color: getRiskColor(problema.risco), textTransform: "uppercase", fontSize: "0.68rem", fontWeight: 700 }}>
+                          {problema.risco}
+                        </span>
+                      </div>
+                      <div style={{ color: "var(--text-secondary)", marginBottom: "4px" }}>
+                        Campo: <strong style={{ color: "var(--text-primary)" }}>{problema.campo}</strong>
+                      </div>
+                      {problema.trecho && (
+                        <div style={{ color: "var(--text-secondary)", marginBottom: "4px" }}>
+                          Trecho: &ldquo;{problema.trecho}&rdquo;
+                        </div>
+                      )}
+                      <div style={{ color: "var(--text-secondary)" }}>
+                        Ajuste: {problema.recomendacao}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         {/* Hook Block */}
         <div className="glass-card result-block hook-block">
           <div className="block-header">

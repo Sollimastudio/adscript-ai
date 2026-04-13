@@ -2,6 +2,254 @@ import { NextResponse } from 'next/server';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+type RiskLevel = 'alto' | 'medio' | 'baixo';
+
+interface ScriptData {
+  score: {
+    total: number;
+    relevancia: number;
+    hookQuality: number;
+    compliance: number;
+    engajamento: number;
+  };
+  hook: {
+    texto: string;
+    acao: string;
+  };
+  roteiro: string;
+  direcaoCena: string;
+  dicasRetencao: Array<{
+    momento: string;
+    dica: string;
+    risco: string;
+  }>;
+  compliance: Array<{
+    item: string;
+    status: string;
+  }>;
+  ctaFinal: string;
+  frameworkUsado: string;
+  preAprovador?: {
+    status: 'aprovado' | 'revisado';
+    riscoGeral: RiskLevel;
+    pontuacao: number;
+    resumo: string;
+    problemas: Array<{
+      regra: string;
+      campo: 'hook' | 'roteiro' | 'ctaFinal';
+      risco: RiskLevel;
+      trecho: string;
+      recomendacao: string;
+    }>;
+  };
+}
+
+interface Rule {
+  id: string;
+  label: string;
+  risk: RiskLevel;
+  pattern: RegExp;
+  recommendation: string;
+}
+
+const PRE_APPROVAL_RULES: Rule[] = [
+  {
+    id: 'promessa_absoluta',
+    label: 'Promessa absoluta/garantia',
+    risk: 'alto',
+    pattern: /\b(100%|garantid[oa]s?|sem\s+erro|sem\s+falha|resultado\s+imediato)\b/i,
+    recommendation: 'Trocar promessa absoluta por linguagem de probabilidade e consistencia.',
+  },
+  {
+    id: 'claim_financeira_agressiva',
+    label: 'Claim financeira agressiva',
+    risk: 'alto',
+    pattern: /\b(ganhe|fature)\s*r?\$?\s*[\d.,]+\b|\b(fique\s+rico|enrique[çc]a\s+r[aá]pido)\b/i,
+    recommendation: 'Evitar promessa financeira direta e foco em beneficio pratico verificavel.',
+  },
+  {
+    id: 'prazo_irreal',
+    label: 'Prazo potencialmente irreal',
+    risk: 'medio',
+    pattern: /\bem\s*\d+\s*(dia|dias|hora|horas|semana|semanas)\b/i,
+    recommendation: 'Remover prazo absoluto e usar janela realista com contexto.',
+  },
+  {
+    id: 'atributo_pessoal_invasivo',
+    label: 'Atributo pessoal invasivo',
+    risk: 'alto',
+    pattern: /\bvoc[eê]\s+(est[aá]|tem|sofre|[ée])\s+(depress[aã]o|ansiedade|d[ií]vida|obesidade|trauma|doente)\b/i,
+    recommendation: 'Reformular para contexto geral sem apontar caracteristica pessoal sensivel.',
+  },
+  {
+    id: 'clickbait_agressivo',
+    label: 'Clickbait agressivo',
+    risk: 'medio',
+    pattern: /\b(segredo\s+proibido|ningu[eé]m\s+te\s+conta|chocante|imperd[ií]vel)\b/i,
+    recommendation: 'Reduzir sensacionalismo e priorizar promessa clara de valor.',
+  },
+];
+
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.min(100, Math.round(parsed)));
+    }
+  }
+  return fallback;
+}
+
+function toStringValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value.trim() : fallback;
+}
+
+function extractSnippet(text: string, pattern: RegExp): string {
+  const match = new RegExp(pattern.source, pattern.flags.replace('g', '')).exec(text);
+  if (!match) return '';
+  const start = Math.max(0, match.index - 28);
+  const end = Math.min(text.length, match.index + match[0].length + 28);
+  return text.slice(start, end).trim();
+}
+
+function applyAutoFixes(text: string): string {
+  let updated = text;
+  updated = updated.replace(/\b100%\b/gi, 'alta chance');
+  updated = updated.replace(/\bgarantid[oa]s?\b/gi, 'consistente');
+  updated = updated.replace(/\b(ganhe|fature)\s*r?\$?\s*[\d.,]+\b/gi, 'gere resultado real');
+  updated = updated.replace(/\b(fique\s+rico|enrique[çc]a\s+r[aá]pido)\b/gi, 'construa resultados sustentaveis');
+  updated = updated.replace(/\bem\s*\d+\s*(dia|dias|hora|horas|semana|semanas)\b/gi, 'com consistencia');
+  updated = updated.replace(
+    /\bvoc[eê]\s+(est[aá]|tem|sofre|[ée])\s+(depress[aã]o|ansiedade|d[ií]vida|obesidade|trauma|doente)\b/gi,
+    'muitas pessoas enfrentam esse cenario'
+  );
+  updated = updated.replace(/\b(segredo\s+proibido|ningu[eé]m\s+te\s+conta|chocante|imperd[ií]vel)\b/gi, 'insight pratico');
+  return updated;
+}
+
+function normalizeScriptData(input: unknown): ScriptData | null {
+  if (!input || typeof input !== 'object') return null;
+
+  const raw = input as Record<string, unknown>;
+  const scoreRaw = (raw.score && typeof raw.score === 'object') ? raw.score as Record<string, unknown> : {};
+  const hookRaw = (raw.hook && typeof raw.hook === 'object') ? raw.hook as Record<string, unknown> : {};
+  const tipsRaw = Array.isArray(raw.dicasRetencao) ? raw.dicasRetencao : [];
+  const complianceRaw = Array.isArray(raw.compliance) ? raw.compliance : [];
+
+  const normalized: ScriptData = {
+    score: {
+      total: toNumber(scoreRaw.total, 0),
+      relevancia: toNumber(scoreRaw.relevancia, 0),
+      hookQuality: toNumber(scoreRaw.hookQuality, 0),
+      compliance: toNumber(scoreRaw.compliance, 0),
+      engajamento: toNumber(scoreRaw.engajamento, 0),
+    },
+    hook: {
+      texto: toStringValue(hookRaw.texto),
+      acao: toStringValue(hookRaw.acao),
+    },
+    roteiro: toStringValue(raw.roteiro),
+    direcaoCena: toStringValue(raw.direcaoCena),
+    dicasRetencao: tipsRaw
+      .filter((tip): tip is Record<string, unknown> => !!tip && typeof tip === 'object')
+      .map((tip) => ({
+        momento: toStringValue(tip.momento),
+        dica: toStringValue(tip.dica),
+        risco: toStringValue(tip.risco),
+      }))
+      .filter((tip) => tip.momento || tip.dica),
+    compliance: complianceRaw
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+      .map((item) => ({
+        item: toStringValue(item.item),
+        status: toStringValue(item.status),
+      }))
+      .filter((item) => item.item),
+    ctaFinal: toStringValue(raw.ctaFinal),
+    frameworkUsado: toStringValue(raw.frameworkUsado, 'AIDA'),
+  };
+
+  if (!normalized.hook.texto && !normalized.roteiro && !normalized.ctaFinal) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function runPreApprover(data: ScriptData): ScriptData {
+  const issues: ScriptData['preAprovador']['problemas'] = [];
+  const fields: Array<{ key: 'hook' | 'roteiro' | 'ctaFinal'; text: string }> = [
+    { key: 'hook', text: data.hook.texto },
+    { key: 'roteiro', text: data.roteiro },
+    { key: 'ctaFinal', text: data.ctaFinal },
+  ];
+
+  for (const field of fields) {
+    for (const rule of PRE_APPROVAL_RULES) {
+      if (!field.text) continue;
+      if (new RegExp(rule.pattern.source, rule.pattern.flags.replace('g', '')).test(field.text)) {
+        issues.push({
+          regra: rule.label,
+          campo: field.key,
+          risco: rule.risk,
+          trecho: extractSnippet(field.text, rule.pattern),
+          recomendacao: rule.recommendation,
+        });
+      }
+    }
+  }
+
+  const correctedHook = applyAutoFixes(data.hook.texto);
+  const correctedRoteiro = applyAutoFixes(data.roteiro);
+  const correctedCta = applyAutoFixes(data.ctaFinal);
+
+  const highRisk = issues.filter((issue) => issue.risco === 'alto').length;
+  const mediumRisk = issues.filter((issue) => issue.risco === 'medio').length;
+  const pontuacao = Math.max(0, 100 - (highRisk * 18 + mediumRisk * 8));
+
+  const riscoGeral: RiskLevel = highRisk > 0 ? 'alto' : mediumRisk > 0 ? 'medio' : 'baixo';
+  const status: 'aprovado' | 'revisado' = issues.length > 0 ? 'revisado' : 'aprovado';
+
+  const resumo =
+    status === 'aprovado'
+      ? 'Nenhum padrao de risco foi detectado pelas regras internas de pre-aprovacao.'
+      : `${issues.length} ajuste(s) aplicado(s) para reduzir risco de reprovacao e melhorar compliance.`;
+
+  const nextCompliance = [
+    ...data.compliance,
+    {
+      item: 'Pre-aprovador interno (regras deterministicas)',
+      status,
+    },
+  ];
+
+  return {
+    ...data,
+    hook: {
+      ...data.hook,
+      texto: correctedHook,
+    },
+    roteiro: correctedRoteiro,
+    ctaFinal: correctedCta,
+    compliance: nextCompliance,
+    score: {
+      ...data.score,
+      compliance: Math.max(0, Math.round((data.score.compliance + pontuacao) / 2)),
+      total: Math.max(0, Math.round((data.score.total + pontuacao) / 2)),
+    },
+    preAprovador: {
+      status,
+      riscoGeral,
+      pontuacao,
+      resumo,
+      problemas: issues,
+    },
+  };
+}
+
 const SYSTEM_PROMPT = `Você é o "AdScript AI" — um sistema avançado de engenharia reversa dos algoritmos de aprovação e distribuição de anúncios das plataformas Meta (Instagram Reels, Facebook), TikTok e YouTube Shorts.
 
 ## SUA MISSÃO
@@ -90,6 +338,13 @@ Você DEVE responder APENAS com um JSON válido, sem texto antes ou depois, exat
 
 export async function POST(req: Request) {
   try {
+    if (!OPENROUTER_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: 'OPENROUTER_API_KEY não configurada no servidor.' },
+        { status: 500 }
+      );
+    }
+
     const { plataforma, emocao, assunto, nicho, duracao } = await req.json();
 
     if (!assunto || !assunto.trim()) {
@@ -150,7 +405,7 @@ Gere o roteiro completo otimizado para APROVAÇÃO e ALTA PERFORMANCE no algorit
     }
 
     // Try to parse as JSON — the AI is instructed to return pure JSON
-    let scriptData;
+    let parsedData: unknown;
     try {
       // Strip any markdown code blocks if present
       let cleaned = rawContent.trim();
@@ -163,7 +418,7 @@ Gere o roteiro completo otimizado para APROVAÇÃO e ALTA PERFORMANCE no algorit
       if (firstBrace !== -1 && lastBrace !== -1) {
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
       }
-      scriptData = JSON.parse(cleaned);
+      parsedData = JSON.parse(cleaned);
     } catch {
       // If parsing fails, return raw as a fallback
       console.error("Failed to parse AI response as JSON, returning raw");
@@ -176,7 +431,22 @@ Gere o roteiro completo otimizado para APROVAÇÃO e ALTA PERFORMANCE no algorit
       });
     }
 
-    return NextResponse.json({ success: true, data: scriptData });
+    const normalizedData = normalizeScriptData(parsedData);
+
+    if (!normalizedData) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          raw: rawContent,
+          parseError: true,
+          error: 'JSON recebido sem o formato minimo esperado.',
+        }
+      });
+    }
+
+    const enrichedData = runPreApprover(normalizedData);
+
+    return NextResponse.json({ success: true, data: enrichedData });
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
